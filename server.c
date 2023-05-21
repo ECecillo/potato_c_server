@@ -11,26 +11,56 @@
 
 #define FILE_PATH "public/"
 
+typedef struct {
+  char* path;
+  char* file_type;
+} Request;
+
+// Define a struct to hold the mapping between file extensions and MIME types.
+typedef struct {
+  const char* extension;
+  const char* mime_type;
+} mime_map;
+
+mime_map mime_types[] = {
+  {"html", "text/html"},
+  {"css", "text/css"},
+  {"js", "application/javascript"},
+  {"png", "image/png"},
+  {"jpg", "image/jpeg"},
+  {"jpeg", "image/jpeg"},
+  {"gif", "image/gif"},
+};
 
 char* buildPathToStaticContent(char* content_asked) { 
-    char* full_path = malloc(strlen(FILE_PATH) + strlen(content_asked) + 1);
-    strcpy(full_path, FILE_PATH);
-    strcat(full_path, content_asked);
-    return full_path;
+  char* full_path = malloc(strlen(FILE_PATH) + strlen(content_asked) + 1);
+  strcpy(full_path, FILE_PATH);
+  strcat(full_path, content_asked);
+  return full_path;
 }
 
-char* parse_request_header_to_get_path(const char* request_buffer_to_parse) {
+Request parse_request_header_to_get_path(const char* request_buffer_to_parse) {
   char method[16], version[16];
   char* path = malloc(1024);
+  Request request;
 
   if(sscanf(request_buffer_to_parse, "%15s %1023s %15s", method, path, version) == 3) {
-    return path;
+    request.path = path;
+    // Extract file type from path
+    char* extension = strrchr(path, '.');
+    if(extension) {
+      request.file_type = malloc(strlen(extension) + 1);
+      strcpy(request.file_type, extension + 1);
+    } else {
+      request.file_type = malloc(strlen("html") + 1);
+      strcpy(request.file_type, "html");
+    }
   } else {
     free(path);
-    char* error_message = malloc(strlen("Failed to parse request line\n") + 1);
-    strcpy(error_message, "Failed to parse request line\n");
-    return error_message;
+    request.path = NULL;
+    request.file_type= NULL;
   }
+  return request;
 }
 
 char* read_html (char* file_to_read, long* len) {
@@ -81,20 +111,33 @@ char* read_html (char* file_to_read, long* len) {
   return file_buffer;
 }
 
-char* buildHTTPHeader(char* html, long len) {
-  char header_format[] = "HTTP/1.1 200 OK\nContent-Type: text/html\nContent-Length: %ld\n\n";
-  // Get the length of the header to allocate memory for it
-  int header_length = snprintf(NULL, 0, header_format, len);
+const char* mimeTypeBasedOnFileType(const char* file_type) {
+  // Iterate over the array and find the matching MIME type for the given file extension.
+  for (int i = 0; i < sizeof(mime_types) / sizeof(mime_map); i++) {
+    if (strcmp(file_type, mime_types[i].extension) == 0) {
+      return mime_types[i].mime_type;
+    }
+  }
+  // Default content type
+  return "text/plain";
+}
+
+char* buildHTTPHeader(char* html, long len, const char* file_type) {
+
+  const char * content_type = mimeTypeBasedOnFileType(file_type);
+  char header_format[] = "HTTP/1.1 200 OK\nContent-Type: %s\nContent-Length: %ld\n\n";
+  int header_length = snprintf(NULL, 0, header_format, content_type, len);
 
   char *html_header = malloc(header_length + 1 + len);
   // Write the header to the buffer
-  sprintf(html_header, header_format, len);
+  sprintf(html_header, header_format, content_type,len);
   strcat(html_header, html);
   return html_header;
 }
 
 char* serve_static_content_to_client(char* request_buffer_to_parse) {
-  char* content_asked= parse_request_header_to_get_path(request_buffer_to_parse);
+  Request request = parse_request_header_to_get_path(request_buffer_to_parse);
+  char* content_asked = request.path;
 
   // Remove the leading '/' from the requested path to convert it to a file path.
   char* file_path = content_asked + 1;
@@ -108,7 +151,7 @@ char* serve_static_content_to_client(char* request_buffer_to_parse) {
     free(full_path);
     printf("Serving Index");
     full_path = buildPathToStaticContent("index.html");
- }
+  }
 
   printf("Serving %s \n", full_path); 
   char* html = read_html(full_path, &len);
@@ -116,9 +159,19 @@ char* serve_static_content_to_client(char* request_buffer_to_parse) {
   // If read_html() returned an error message, read the error.html file instead.
   if (strncmp(html, "Error", 5) == 0) {
     free(html);
-    printf("Serving Error Page");
-    full_path = buildPathToStaticContent("error.html");
-    html = read_html(full_path, &len);
+    printf("%s", request.file_type);
+    if(strcmp(request.file_type, "html") == 0) {
+      printf("Serving Error Page");
+      full_path = buildPathToStaticContent("error.html");
+      html = read_html(full_path, &len);
+    } else {
+      char *header = "HTTP/1.1 404 NOT FOUND\nContent-Type: text/html\nContent-Length: 0\n\n";
+      char *html_header = malloc(strlen(header) + 1);
+      strcpy(html_header, header);
+      free(content_asked);
+      free(full_path); 
+      return html_header; 
+    }
   }
 
   // Handle the case where reading error.html also failed.
@@ -129,7 +182,7 @@ char* serve_static_content_to_client(char* request_buffer_to_parse) {
     free(full_path);  
     return NULL;
   } 
-  char *html_header = buildHTTPHeader(html, len);
+  char *html_header = buildHTTPHeader(html, len, request.file_type);
   free(html);
   free(content_asked);
   free(full_path);  
@@ -187,8 +240,8 @@ int main(int argc, char const *argv[])
 
     // Retrieve only the first line of the request to know what the client wants.
     //char *new_line_position = strchr(buffer, '\n');
-    char* content_path = parse_request_header_to_get_path(buffer);
-    printf("%s\n",content_path);
+    //char* content_path = parse_request_header_to_get_path(buffer);
+    //printf("%s\n",content_path);
 
     char* html_header = serve_static_content_to_client(buffer);
     if(html_header == NULL) {
@@ -201,7 +254,7 @@ int main(int argc, char const *argv[])
     printf("------------------HTML file sent-------------------\n");
     close(new_socket);
 
-    free(content_path);
+    //free(content_path);
     free(html_header);
   }
   return 0;
