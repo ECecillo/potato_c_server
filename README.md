@@ -72,6 +72,36 @@ We can see it has a variation of the type of service.
 gcc server.c -o server && gcc client.c -o client
 ```
 
+# Providing static file to the client 
+
+## Serving HTML file based on URL
+
+At each request we can extract the first line of the HTTP Request that correspond to the content that the client is asking.
+
+With a little bit of parsing from our part we were able to extract the path and read into a buffer the content that the client was looking for.
+
+We also provided an error page in case the client is asking an unknown content.
+
+## Serving any type of content
+
+Until now our only focus was serving HTML content to our Client.
+
+However, as of 2023, we usually have some CSS or JS stored on the server side.
+
+So we need a way to: 
+- Detect the type of file that the client is asking. 
+- Set the Content-Type in our Header.
+
+For the Detection it was pretty straight forward, we just needed to extract it when parsing the client request.
+
+Finally, setting the Content-Type will be possible when serving the content because in first place we had to get the Path and since we detect
+
+the type of the file during this operation we just need to re-use the result of the detection for the build of the Header.
+
+For simplicity, we created a struct to store the file_type and the path to it.
+
+At this point, our potatoe web server is able to do a lot of stuff.
+
 # Author
 
 CECILLON Enzo
