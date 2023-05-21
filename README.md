@@ -35,10 +35,43 @@ When a program asks to open a file — or another data resource, like a network 
 - Creates an entry in the global file table.
 - Provides the software with the location of that entry.
 
-# Socket Communication Domains
+## Socket Communication Domains
 
 source : https://www.ibm.com/docs/en/aix/7.2?topic=sockets-socket-communication-domains
 
+Socket sharing the same communication preperties, such as naming conventions and
+protocols address formats, are grouped into communication domains.
 
+A communication domain is sometimes referred to as name or address space.
 
-Author: CECILLON Enzo
+The communication domain includes the following:
+- Rules for manipulating and interpreting names
+- Collection of related address formats that comprise an address family
+- Set of protocols, called the protocol family
+
+Example of address family:
+- [AF_INET](https://www.ibm.com/docs/en/i/7.4?topic=family-af-inet-address) : 
+  - For IP, provides interprocess communication between processes that run on the same system or on different systems.
+- [AF_INET6](): IPv6, 
+- [AF_UNIX](): local channel, similar to pipes
+- [AF_ISO](): ISO protocols, 
+- [AF_NS](): Xeros Network Systems protocols
+
+## Socket Type of Service
+
+Can be chose according to the address family we are using.
+
+## Socket Protocol
+
+Indicate a specific protocol to use in supporting the sockets operation.
+We can see it has a variation of the type of service. 
+
+# Compiling and executing the code
+
+```bash
+gcc server.c -o server && gcc client.c -o client
+```
+
+# Author
+
+CECILLON Enzo
