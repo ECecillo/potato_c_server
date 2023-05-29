@@ -102,6 +102,15 @@ For simplicity, we created a struct to store the file_type and the path to it.
 
 At this point, our potatoe web server is able to do a lot of stuff.
 
+
+# Understanding what a web server does using Node
+
+https://www.youtube.com/watch?v=DaU1-XoANig
+https://medium.com/@hnasr/when-nodejs-i-o-blocks-327f8a36fbd4
+
+This article and video, really helped me understand how a socket read data coming from the internet, how the kernel store 
+and forward data to the application buffer and finally how ndoe really handle all of this as a single threaded process.
+
 # Author
 
 CECILLON Enzo
